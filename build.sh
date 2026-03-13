@@ -715,30 +715,21 @@ document.getElementById('fbPane').innerHTML =
   '<div><label for="fbMsg">Feedback</label><textarea id="fbMsg" name="message" placeholder="What do you think? What would be helpful?" required></textarea></div>' +
   '<button type="submit" class="fb-submit">Send Feedback</button>' +
   '</form>' +
-  '<div class="fb-success" id="fbSuccess">Thank you — your feedback has been sent!</div>' +
+  '<div class="fb-success" id="fbSuccess">Your email client should have opened with your feedback ready to send. Thank you!</div>' +
   '<div class="fb-error" id="fbError">Something went wrong. Please try again.</div>' +
   '</div>';
 
-document.getElementById('fbForm').addEventListener('submit', async function(e) {
+document.getElementById('fbForm').addEventListener('submit', function(e) {
   e.preventDefault();
-  const btn = this.querySelector('.fb-submit');
-  btn.disabled = true; btn.textContent = 'Sending...';
-  try {
-    const res = await fetch('https://formspree.io/oneillwm@yahoo.com', {
-      method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: document.getElementById('fbName').value, message: document.getElementById('fbMsg').value })
-    });
-    if (res.ok) {
-      this.style.display = 'none';
-      document.getElementById('fbSuccess').style.display = 'block';
-    } else {
-      throw new Error('non-ok');
-    }
-  } catch(err) {
-    document.getElementById('fbError').style.display = 'block';
-    btn.disabled = false; btn.textContent = 'Send Feedback';
-  }
+  const name = document.getElementById('fbName').value.trim();
+  const msg  = document.getElementById('fbMsg').value.trim();
+  if (!msg) return;
+  const body = (name ? 'From: ' + name + '\n\n' : '') + msg;
+  window.location.href = 'mailto:oneillwm@yahoo.com'
+    + '?subject=' + encodeURIComponent('SWPaddle Feedback')
+    + '&body='    + encodeURIComponent(body);
+  this.style.display = 'none';
+  document.getElementById('fbSuccess').style.display = 'block';
 });
 
 // Boot
