@@ -215,6 +215,7 @@ header h1 span { color: var(--accent); }
   <div class="header-info" id="headerInfo"></div>
   <nav class="tabs">
     <button class="tab-btn active" data-tab="sw">SW Series Stats</button>
+    <button class="tab-btn" data-tab="ts">Top Series Stats</button>
     <button class="tab-btn" data-tab="pr">Player Ratings</button>
     <button class="tab-btn" data-tab="rn">Release Notes</button>
     <button class="tab-btn" data-tab="fb">Feedback</button>
@@ -222,6 +223,7 @@ header h1 span { color: var(--accent); }
 </header>
 
 <div id="swPane" class="tab-pane active"></div>
+<div id="tsPane" class="tab-pane"></div>
 <div id="prPane" class="tab-pane">
   <div id="clubGrid"></div>
 </div>
@@ -252,6 +254,18 @@ HTMLEOF
   printf ';\nconst MATCH_DATA = '
   if [ -f /c/Users/oneil/Desktop/paddle/match_data.json ]; then
     cat /c/Users/oneil/Desktop/paddle/match_data.json
+  else
+    printf '[]'
+  fi
+  printf ';\nconst TOP_DATA = '
+  if [ -f /c/Users/oneil/Desktop/paddle/top_data.json ]; then
+    cat /c/Users/oneil/Desktop/paddle/top_data.json
+  else
+    printf '[]'
+  fi
+  printf ';\nconst TOP_MATCH_DATA = '
+  if [ -f /c/Users/oneil/Desktop/paddle/top_match_data.json ]; then
+    cat /c/Users/oneil/Desktop/paddle/top_match_data.json
   else
     printf '[]'
   fi
@@ -297,7 +311,7 @@ function wlHtml(w, l) {
 
 // ── Tab switching ─────────────────────────────────────────────
 const topTabs = document.querySelectorAll('.tab-btn');
-const panes = { sw: document.getElementById('swPane'), pr: document.getElementById('prPane'), rn: document.getElementById('rnPane'), fb: document.getElementById('fbPane') };
+const panes = { sw: document.getElementById('swPane'), ts: document.getElementById('tsPane'), pr: document.getElementById('prPane'), rn: document.getElementById('rnPane'), fb: document.getElementById('fbPane') };
 const searchWrap = document.getElementById('searchWrap');
 const headerInfo = document.getElementById('headerInfo');
 
@@ -315,9 +329,13 @@ function updateHeaderInfo(tab) {
   if (tab === 'sw') {
     const teams = SW_DATA.reduce((s,d) => s + d.teams.length, 0);
     const players = SW_DATA.reduce((s,d) => s + d.teams.reduce((t,tm) => t + (Array.isArray(tm.players) ? tm.players.length : 0), 0), 0);
-    const matchStr = MATCH_DATA.length > 0
-      ? ' &nbsp;|&nbsp; Matches: <span>' + MATCH_DATA.length + '</span>' : '';
-    headerInfo.innerHTML = 'SW divisions: <span>' + SW_DATA.length + '</span> &nbsp;|&nbsp; SW teams: <span>' + teams + '</span> &nbsp;|&nbsp; Players: <span>' + players.toLocaleString() + '</span>' + matchStr;
+    const matchStr = MATCH_DATA.length > 0 ? ' &nbsp;|&nbsp; Matches: <span>' + MATCH_DATA.length + '</span>' : '';
+    headerInfo.innerHTML = 'SW divisions: <span>' + SW_DATA.length + '</span> &nbsp;|&nbsp; Teams: <span>' + teams + '</span> &nbsp;|&nbsp; Players: <span>' + players.toLocaleString() + '</span>' + matchStr;
+  } else if (tab === 'ts') {
+    const teams = TOP_DATA.reduce((s,d) => s + d.teams.length, 0);
+    const players = TOP_DATA.reduce((s,d) => s + d.teams.reduce((t,tm) => t + (Array.isArray(tm.players) ? tm.players.length : 0), 0), 0);
+    const matchStr = TOP_MATCH_DATA.length > 0 ? ' &nbsp;|&nbsp; Matches: <span>' + TOP_MATCH_DATA.length + '</span>' : '';
+    headerInfo.innerHTML = 'Divisions: <span>' + TOP_DATA.length + '</span> &nbsp;|&nbsp; Teams: <span>' + teams + '</span> &nbsp;|&nbsp; Players: <span>' + players.toLocaleString() + '</span>' + matchStr;
   } else if (tab === 'pr') {
     const total = PLAYER_DATA.reduce((s,l) => s+l.players.length, 0);
     headerInfo.innerHTML = 'Locations: <span>' + PLAYER_DATA.length + '</span> &nbsp;|&nbsp; Active players: <span>' + total.toLocaleString() + '</span>';
@@ -335,14 +353,18 @@ SW_DATA.forEach(div => div.teams.forEach(team => {
   if (!Array.isArray(team.players)) return;
   team.players.forEach(p => { if (!playerPTIMap[p.name]) playerPTIMap[p.name] = p.rating; });
 }));
+TOP_DATA.forEach(div => div.teams.forEach(team => {
+  if (!Array.isArray(team.players)) return;
+  team.players.forEach(p => { if (!playerPTIMap[p.name]) playerPTIMap[p.name] = p.rating; });
+}));
 PLAYER_DATA.forEach(loc => loc.players.forEach(p => {
   const fn = p.firstName + ' ' + p.lastName;
   if (!playerPTIMap[fn]) playerPTIMap[fn] = p.currentRating;
 }));
 
 // Compute Avg PTI/Game using match data (includes substitutes)
-function computeAdjAvgPTIPerGame(teamName, fallback) {
-  const matches = matchByTeam[teamName] || [];
+function computeAdjAvgPTIPerGame(teamName, fallback, mbt) {
+  const matches = mbt[teamName] || [];
   if (matches.length === 0) return fallback;
   let wSum = 0, cnt = 0;
   matches.forEach(m => {
@@ -360,22 +382,41 @@ function computeAdjAvgPTIPerGame(teamName, fallback) {
   return cnt > 0 ? Math.round(wSum / cnt * 100) / 100 : fallback;
 }
 
-// Build player → all SW teams map
-const playerTeamMap = {};
+// Build player → teams maps (one per series)
+const swPlayerTeamMap = {};
 SW_DATA.forEach(div => {
   div.teams.forEach(team => {
     if (team.name.startsWith('BYE') || !Array.isArray(team.players)) return;
     team.players.forEach(p => {
-      if (!playerTeamMap[p.name]) playerTeamMap[p.name] = [];
-      if (!playerTeamMap[p.name].includes(team.name)) playerTeamMap[p.name].push(team.name);
+      if (!swPlayerTeamMap[p.name]) swPlayerTeamMap[p.name] = [];
+      if (!swPlayerTeamMap[p.name].includes(team.name)) swPlayerTeamMap[p.name].push(team.name);
     });
+  });
+});
+const topPlayerTeamMap = {};
+TOP_DATA.forEach(div => {
+  div.teams.forEach(team => {
+    if (team.name.startsWith('BYE') || !Array.isArray(team.players)) return;
+    team.players.forEach(p => {
+      if (!topPlayerTeamMap[p.name]) topPlayerTeamMap[p.name] = [];
+      if (!topPlayerTeamMap[p.name].includes(team.name)) topPlayerTeamMap[p.name].push(team.name);
+    });
+  });
+});
+
+// Index TOP_MATCH_DATA by team name
+const topMatchByTeam = {};
+TOP_MATCH_DATA.forEach(m => {
+  [m.team1, m.team2].forEach(t => {
+    if (!topMatchByTeam[t]) topMatchByTeam[t] = [];
+    topMatchByTeam[t].push(m);
   });
 });
 
 // ── Analysis helpers ──────────────────────────────────────────
 
-function buildLineStats(teamName) {
-  const matches = matchByTeam[teamName] || [];
+function buildLineStats(teamName, mbt) {
+  const matches = mbt[teamName] || [];
   const stats = {}; // lineNum -> { wins, losses, pairs: { pairKey -> {wins,losses} } }
   matches.forEach(m => {
     const isT1 = (m.team1 === teamName);
@@ -393,8 +434,8 @@ function buildLineStats(teamName) {
   return stats;
 }
 
-function buildPartnerStats(teamName) {
-  const matches = matchByTeam[teamName] || [];
+function buildPartnerStats(teamName, mbt) {
+  const matches = mbt[teamName] || [];
   const stats = {}; // pairKey -> { wins, losses, matches: [...] }
   matches.forEach(m => {
     const isT1 = (m.team1 === teamName);
@@ -427,8 +468,8 @@ function buildPartnerStats(teamName) {
 
 let _ddUid = 0;  // global counter — ensures every drilldown row has a unique DOM id
 
-function renderLineAnalysis(teamName) {
-  const stats = buildLineStats(teamName);
+function renderLineAnalysis(teamName, mbt) {
+  const stats = buildLineStats(teamName, mbt);
   const lines = Object.keys(stats).map(Number).sort((a,b) => a-b);
   if (lines.length === 0) return '<div class="no-data">No match data available for this team.</div>';
 
@@ -459,8 +500,8 @@ function renderLineAnalysis(teamName) {
     '<tbody>' + rows + '</tbody></table>';
 }
 
-function renderPartnerAnalysis(teamName) {
-  const stats = buildPartnerStats(teamName);
+function renderPartnerAnalysis(teamName, mbt) {
+  const stats = buildPartnerStats(teamName, mbt);
   const pairs = Object.keys(stats).sort((a,b) => {
     const da = stats[a].wins - stats[a].losses;
     const db = stats[b].wins - stats[b].losses;
@@ -510,130 +551,130 @@ document.addEventListener('click', function(e) {
   body.classList.toggle('open');
 });
 
-// ── Build SW pane ──────────────────────────────────────────────
-SW_DATA.forEach(div => {
-  const allPlayers = div.teams.filter(t => !t.name.startsWith('BYE') && Array.isArray(t.players)).flatMap(t => t.players);
-  const divAvgPTI = allPlayers.length > 0
-    ? (allPlayers.reduce((s,p) => s + p.rating, 0) / allPlayers.length).toFixed(2) : '-';
+// ── Shared series pane renderer ────────────────────────────────
+function renderSeriesPane(data, paneEl, mbt, ptmMap) {
+  data.forEach(div => {
+    const allPlayers = div.teams.filter(t => !t.name.startsWith('BYE') && Array.isArray(t.players)).flatMap(t => t.players);
+    const divAvgPTI = allPlayers.length > 0
+      ? (allPlayers.reduce((s,p) => s + p.rating, 0) / allPlayers.length).toFixed(2) : '-';
 
-  const divEl = document.createElement('div');
-  divEl.className = 'sw-division';
+    const divEl = document.createElement('div');
+    divEl.className = 'sw-division';
 
-  const hdr = document.createElement('div');
-  hdr.className = 'sw-div-header';
-  hdr.innerHTML = '<span class="sw-div-title">' + esc(div.division) + '</span>' +
-    '<span style="color:rgba(255,255,255,.7);font-size:.8rem;margin-right:14px">Avg&nbsp;PTI:&nbsp;<strong style="color:var(--accent)">' + divAvgPTI + '</strong></span>' +
-    '<span class="sw-div-chevron">&#9654;</span>';
-  hdr.addEventListener('click', () => divEl.classList.toggle('open'));
+    const hdr = document.createElement('div');
+    hdr.className = 'sw-div-header';
+    hdr.innerHTML = '<span class="sw-div-title">' + esc(div.division) + '</span>' +
+      '<span style="color:rgba(255,255,255,.7);font-size:.8rem;margin-right:14px">Avg&nbsp;PTI:&nbsp;<strong style="color:var(--accent)">' + divAvgPTI + '</strong></span>' +
+      '<span class="sw-div-chevron">&#9654;</span>';
+    hdr.addEventListener('click', () => divEl.classList.toggle('open'));
 
-  const body = document.createElement('div');
-  body.className = 'sw-div-body';
+    const body = document.createElement('div');
+    body.className = 'sw-div-body';
 
-  div.teams
-    .filter(t => t.name !== 'BYE' && !t.name.startsWith('BYE'))
-    .forEach(team => {
-      const placeClass = team.place === 1 ? 'p1' : team.place === 2 ? 'p2' : team.place === 3 ? 'p3' : '';
-      const teamEl = document.createElement('div');
-      teamEl.className = 'sw-team';
+    div.teams
+      .filter(t => t.name !== 'BYE' && !t.name.startsWith('BYE'))
+      .forEach(team => {
+        const placeClass = team.place === 1 ? 'p1' : team.place === 2 ? 'p2' : team.place === 3 ? 'p3' : '';
+        const teamEl = document.createElement('div');
+        teamEl.className = 'sw-team';
 
-      const thead = document.createElement('div');
-      thead.className = 'sw-team-header';
-      thead.innerHTML =
-        '<span class="sw-team-chevron">&#9654;</span>' +
-        '<span class="sw-team-place ' + placeClass + '">' + team.place + '</span>' +
-        '<span class="sw-team-name">' + esc(team.name) + '</span>' +
-        '<div class="sw-team-stats">' +
-          '<div class="sw-stat"><span class="sw-stat-val">' + team.gamesRoster + '</span><span class="sw-stat-lbl" title="The number of series games played by rostered team members">Games/Roster</span></div>' +
-          '<div class="sw-stat"><span class="sw-stat-val">' + team.avgPTI.toFixed(2) + '</span><span class="sw-stat-lbl" title="The average of final PTI of rostered team members">Avg. PTI</span></div>' +
-          '<div class="sw-stat"><span class="sw-stat-val">' + computeAdjAvgPTIPerGame(team.name, team.avgPTIPerGame).toFixed(2) + '</span><span class="sw-stat-lbl" title="The average final PTI of players competing in matches (rostered players and subs)">PTI/Game</span></div>' +
-        '</div>';
-      thead.addEventListener('click', () => teamEl.classList.toggle('open'));
+        const thead = document.createElement('div');
+        thead.className = 'sw-team-header';
+        thead.innerHTML =
+          '<span class="sw-team-chevron">&#9654;</span>' +
+          '<span class="sw-team-place ' + placeClass + '">' + team.place + '</span>' +
+          '<span class="sw-team-name">' + esc(team.name) + '</span>' +
+          '<div class="sw-team-stats">' +
+            '<div class="sw-stat"><span class="sw-stat-val">' + team.gamesRoster + '</span><span class="sw-stat-lbl" title="The number of series games played by rostered team members">Games/Roster</span></div>' +
+            '<div class="sw-stat"><span class="sw-stat-val">' + team.avgPTI.toFixed(2) + '</span><span class="sw-stat-lbl" title="The average of final PTI of rostered team members">Avg. PTI</span></div>' +
+            '<div class="sw-stat"><span class="sw-stat-val">' + computeAdjAvgPTIPerGame(team.name, team.avgPTIPerGame, mbt).toFixed(2) + '</span><span class="sw-stat-lbl" title="The average final PTI of players competing in matches (rostered players and subs)">PTI/Game</span></div>' +
+          '</div>';
+        thead.addEventListener('click', () => teamEl.classList.toggle('open'));
 
-      // ── Team body with sub-tabs ──
-      const tbodyEl = document.createElement('div');
-      tbodyEl.className = 'sw-team-body';
+        const tbodyEl = document.createElement('div');
+        tbodyEl.className = 'sw-team-body';
 
-      // Sub-tab buttons
-      const subTabBar = document.createElement('div');
-      subTabBar.className = 'team-subtabs';
+        const subTabBar = document.createElement('div');
+        subTabBar.className = 'team-subtabs';
 
-      const SUBTABS = [
-        { id: 'players',  label: 'Players' },
-        { id: 'lines',    label: 'Line Analysis' },
-        { id: 'partners', label: 'Partner Analysis' },
-      ];
+        const SUBTABS = [
+          { id: 'players',  label: 'Players' },
+          { id: 'lines',    label: 'Line Analysis' },
+          { id: 'partners', label: 'Partner Analysis' },
+        ];
 
-      SUBTABS.forEach((st, i) => {
-        const btn = document.createElement('button');
-        btn.className = 'team-subtab' + (i === 0 ? ' active' : '');
-        btn.textContent = st.label;
-        btn.dataset.subtab = st.id;
-        btn.addEventListener('click', e => {
-          e.stopPropagation();
-          const container = btn.closest('.sw-team-body');
-          container.querySelectorAll('.team-subtab').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          container.querySelectorAll('.team-subpane').forEach(p => p.classList.remove('active'));
-          container.querySelector('.team-subpane[data-pane="' + st.id + '"]').classList.add('active');
-          // Lazy-render analysis panes on first open
-          const pane = container.querySelector('.team-subpane[data-pane="' + st.id + '"]');
-          if (pane && pane.dataset.loaded !== 'true') {
-            if (st.id === 'lines')    pane.innerHTML = renderLineAnalysis(team.name);
-            if (st.id === 'partners') pane.innerHTML = renderPartnerAnalysis(team.name);
-            pane.dataset.loaded = 'true';
-          }
+        SUBTABS.forEach((st, i) => {
+          const btn = document.createElement('button');
+          btn.className = 'team-subtab' + (i === 0 ? ' active' : '');
+          btn.textContent = st.label;
+          btn.dataset.subtab = st.id;
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const container = btn.closest('.sw-team-body');
+            container.querySelectorAll('.team-subtab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            container.querySelectorAll('.team-subpane').forEach(p => p.classList.remove('active'));
+            container.querySelector('.team-subpane[data-pane="' + st.id + '"]').classList.add('active');
+            const pane = container.querySelector('.team-subpane[data-pane="' + st.id + '"]');
+            if (pane && pane.dataset.loaded !== 'true') {
+              if (st.id === 'lines')    pane.innerHTML = renderLineAnalysis(team.name, mbt);
+              if (st.id === 'partners') pane.innerHTML = renderPartnerAnalysis(team.name, mbt);
+              pane.dataset.loaded = 'true';
+            }
+          });
+          subTabBar.appendChild(btn);
         });
-        subTabBar.appendChild(btn);
+        tbodyEl.appendChild(subTabBar);
+
+        const sorted = Array.isArray(team.players) ? [...team.players].sort((a,b) => a.rating - b.rating) : [];
+        const playersPane = document.createElement('div');
+        playersPane.className = 'team-subpane active';
+        playersPane.dataset.pane = 'players';
+        playersPane.dataset.loaded = 'true';
+        playersPane.innerHTML =
+          '<table class="sw-players-table">' +
+          '<thead><tr><th>Player</th><th>Team(s)</th><th>Games</th><th>PTI</th></tr></thead><tbody>' +
+          sorted.map(p => {
+            const allTeams = ptmMap[p.name] || [team.name];
+            const teamsHtml = allTeams.map(t => {
+              const isCurrent = t === team.name;
+              return '<span style="display:inline-block;font-size:.68rem;padding:1px 6px;border-radius:4px;margin:1px;background:' +
+                (isCurrent ? 'rgba(26,42,74,.12);color:var(--text)' : 'rgba(0,201,125,.12);color:#00a065') + '">' + esc(t) + '</span>';
+            }).join('');
+            return '<tr><td>' + esc(p.name) + '</td>' +
+              '<td>' + teamsHtml + '</td>' +
+              '<td>' + p.games + ' <small style="color:var(--text-muted)">(' + p.wins + 'W&nbsp;/&nbsp;' + p.losses + 'L)</small></td>' +
+              '<td style="text-align:right"><span class="pti-badge">' + p.rating.toFixed(1) + '</span></td></tr>';
+          }).join('') +
+          '</tbody></table>';
+        tbodyEl.appendChild(playersPane);
+
+        const linesPane = document.createElement('div');
+        linesPane.className = 'team-subpane';
+        linesPane.dataset.pane = 'lines';
+        linesPane.innerHTML = '<div class="no-data">Click "Line Analysis" to load.</div>';
+        tbodyEl.appendChild(linesPane);
+
+        const partnersPane = document.createElement('div');
+        partnersPane.className = 'team-subpane';
+        partnersPane.dataset.pane = 'partners';
+        partnersPane.innerHTML = '<div class="no-data">Click "Partner Analysis" to load.</div>';
+        tbodyEl.appendChild(partnersPane);
+
+        teamEl.appendChild(thead);
+        teamEl.appendChild(tbodyEl);
+        body.appendChild(teamEl);
       });
-      tbodyEl.appendChild(subTabBar);
 
-      // ── Players sub-pane ──
-      const sorted = Array.isArray(team.players) ? [...team.players].sort((a,b) => a.rating - b.rating) : [];
-      const playersPane = document.createElement('div');
-      playersPane.className = 'team-subpane active';
-      playersPane.dataset.pane = 'players';
-      playersPane.dataset.loaded = 'true';
-      playersPane.innerHTML =
-        '<table class="sw-players-table">' +
-        '<thead><tr><th>Player</th><th>Team(s)</th><th>Games</th><th>PTI</th></tr></thead><tbody>' +
-        sorted.map(p => {
-          const allTeams = playerTeamMap[p.name] || [team.name];
-          const teamsHtml = allTeams.map(t => {
-            const isCurrent = t === team.name;
-            return '<span style="display:inline-block;font-size:.68rem;padding:1px 6px;border-radius:4px;margin:1px;background:' +
-              (isCurrent ? 'rgba(26,42,74,.12);color:var(--text)' : 'rgba(0,201,125,.12);color:#00a065') + '">' + esc(t) + '</span>';
-          }).join('');
-          return '<tr><td>' + esc(p.name) + '</td>' +
-            '<td>' + teamsHtml + '</td>' +
-            '<td>' + p.games + ' <small style="color:var(--text-muted)">(' + p.wins + 'W&nbsp;/&nbsp;' + p.losses + 'L)</small></td>' +
-            '<td style="text-align:right"><span class="pti-badge">' + p.rating.toFixed(1) + '</span></td></tr>';
-        }).join('') +
-        '</tbody></table>';
-      tbodyEl.appendChild(playersPane);
+    divEl.appendChild(hdr);
+    divEl.appendChild(body);
+    paneEl.appendChild(divEl);
+  });
+}
 
-      // ── Line Analysis sub-pane (lazy) ──
-      const linesPane = document.createElement('div');
-      linesPane.className = 'team-subpane';
-      linesPane.dataset.pane = 'lines';
-      linesPane.innerHTML = '<div class="no-data">Click "Line Analysis" to load.</div>';
-      tbodyEl.appendChild(linesPane);
-
-      // ── Partner Analysis sub-pane (lazy) ──
-      const partnersPane = document.createElement('div');
-      partnersPane.className = 'team-subpane';
-      partnersPane.dataset.pane = 'partners';
-      partnersPane.innerHTML = '<div class="no-data">Click "Partner Analysis" to load.</div>';
-      tbodyEl.appendChild(partnersPane);
-
-      teamEl.appendChild(thead);
-      teamEl.appendChild(tbodyEl);
-      body.appendChild(teamEl);
-    });
-
-  divEl.appendChild(hdr);
-  divEl.appendChild(body);
-  swPane.appendChild(divEl);
-});
+// ── Build series panes ─────────────────────────────────────────
+renderSeriesPane(SW_DATA,  document.getElementById('swPane'), matchByTeam,    swPlayerTeamMap);
+renderSeriesPane(TOP_DATA, document.getElementById('tsPane'), topMatchByTeam, topPlayerTeamMap);
 
 // ── PLAYER RATINGS (Tab 2) ────────────────────────────────────
 const grid  = document.getElementById('clubGrid');
