@@ -118,6 +118,23 @@ header h1 span { color: var(--accent); }
 .static-pane p { font-size: .88rem; color: var(--text); line-height: 1.7; margin-bottom: 14px; }
 .static-pane .version { font-size: .75rem; color: var(--text-muted); margin-bottom: 18px; }
 
+/* Feedback / comments */
+.fb-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+.fb-form label { font-size: .78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; display: block; margin-bottom: 3px; }
+.fb-form input, .fb-form textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: .88rem; font-family: inherit; color: var(--text); background: var(--surface); outline: none; transition: border-color .15s; }
+.fb-form input:focus, .fb-form textarea:focus { border-color: var(--accent); }
+.fb-form textarea { min-height: 100px; resize: vertical; }
+.fb-submit { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 9px 26px; font-size: .88rem; font-weight: 600; cursor: pointer; align-self: flex-start; transition: background .15s; }
+.fb-submit:hover { background: #243d6a; }
+.fb-submit:disabled { opacity: .6; cursor: default; }
+.comments-list { display: flex; flex-direction: column; gap: 14px; }
+.comment-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; }
+.comment-meta { font-size: .72rem; color: var(--text-muted); margin-bottom: 6px; }
+.comment-name { font-weight: 700; color: var(--primary); margin-right: 8px; }
+.comment-text { font-size: .88rem; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+.comments-empty { font-size: .88rem; color: var(--text-muted); font-style: italic; text-align: center; padding: 20px 0; }
+.fb-notice { font-size: .78rem; color: var(--text-muted); margin-top: 4px; }
+
 .no-data { padding: 16px 18px; color: var(--text-muted); font-size: .82rem; font-style: italic; }
 
 /* ── PLAYER RATINGS (Tab 2) ── */
@@ -197,6 +214,7 @@ header h1 span { color: var(--accent); }
     <button class="tab-btn active" data-tab="sw">SW Series Stats</button>
     <button class="tab-btn" data-tab="pr">Player Ratings</button>
     <button class="tab-btn" data-tab="rn">Release Notes</button>
+    <button class="tab-btn" data-tab="fb">Feedback</button>
   </nav>
 </header>
 
@@ -205,6 +223,7 @@ header h1 span { color: var(--accent); }
   <div id="clubGrid"></div>
 </div>
 <div id="rnPane" class="tab-pane"></div>
+<div id="fbPane" class="tab-pane"></div>
 
 <div id="modal" role="dialog" aria-modal="true">
   <div class="modal-panel">
@@ -260,7 +279,7 @@ function wlHtml(w, l) {
 
 // ── Tab switching ─────────────────────────────────────────────
 const topTabs = document.querySelectorAll('.tab-btn');
-const panes = { sw: document.getElementById('swPane'), pr: document.getElementById('prPane'), rn: document.getElementById('rnPane') };
+const panes = { sw: document.getElementById('swPane'), pr: document.getElementById('prPane'), rn: document.getElementById('rnPane'), fb: document.getElementById('fbPane') };
 const searchWrap = document.getElementById('searchWrap');
 const headerInfo = document.getElementById('headerInfo');
 
@@ -674,6 +693,86 @@ document.getElementById('rnPane').innerHTML =
   '<p>Created by Bill O\'Neill using Claude as an AI development learning tool.</p>' +
   '<p>All data sourced from APTA Chicago. Calculations performed by application are untested.</p>' +
   '</div>';
+
+// ── FEEDBACK / COMMENTS ───────────────────────────────────────
+const GH_TOKEN  = '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';
+const GH_API    = 'https://api.github.com/repos/billoneill1127-source/SWPaddle/contents/comments.json';
+const GH_RAW    = 'https://raw.githubusercontent.com/billoneill1127-source/SWPaddle/main/comments.json';
+
+document.getElementById('fbPane').innerHTML =
+  '<div class="static-pane">' +
+  '<h2>Feedback</h2>' +
+  '<p style="font-style:italic;font-size:.88rem;color:var(--text-muted)">I am interested in what you think and what else you might find helpful on this site. Please give your feedback here. I make no promises to read or react to it. Thank you!</p>' +
+  '<form class="fb-form" id="fbForm">' +
+    '<div><label for="fbName">Your Name (optional)</label><input type="text" id="fbName" placeholder="e.g. John Smith" autocomplete="off"></div>' +
+    '<div><label for="fbMsg">Comment</label><textarea id="fbMsg" placeholder="What do you think? What would be helpful?" required></textarea></div>' +
+    '<div><button type="submit" class="fb-submit" id="fbSubmit">Post Comment</button><span class="fb-notice" id="fbNotice"></span></div>' +
+  '</form>' +
+  '<h2 style="margin-top:8px">Comments</h2>' +
+  '<div class="comments-list" id="commentsList"><div class="comments-empty">Loading comments...</div></div>' +
+  '</div>';
+
+function renderComments(comments) {
+  const list = document.getElementById('commentsList');
+  if (!list) return;
+  if (!comments.length) { list.innerHTML = '<div class="comments-empty">No comments yet. Be the first!</div>'; return; }
+  list.innerHTML = comments.slice().reverse().map(c =>
+    '<div class="comment-card">' +
+    '<div class="comment-meta"><span class="comment-name">' + esc(c.name || 'Anonymous') + '</span>' + esc(c.date) + '</div>' +
+    '<div class="comment-text">' + esc(c.text) + '</div>' +
+    '</div>'
+  ).join('');
+}
+
+async function loadComments() {
+  try {
+    const res = await fetch(GH_RAW + '?t=' + Date.now());
+    const data = res.ok ? await res.json() : [];
+    renderComments(data);
+    return data;
+  } catch(e) { renderComments([]); return []; }
+}
+
+document.getElementById('fbForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const name = document.getElementById('fbName').value.trim();
+  const text = document.getElementById('fbMsg').value.trim();
+  if (!text) return;
+  const btn = document.getElementById('fbSubmit');
+  const notice = document.getElementById('fbNotice');
+  btn.disabled = true; btn.textContent = 'Posting...';
+  try {
+    // Get current file SHA + contents
+    const metaRes = await fetch(GH_API, { headers: { 'Authorization': 'token ' + GH_TOKEN, 'Accept': 'application/vnd.github.v3+json' } });
+    const meta = await metaRes.json();
+    const existing = JSON.parse(atob(meta.content.replace(/\n/g,'')));
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) + ' ' + now.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
+    existing.push({ name: name || 'Anonymous', text, date: dateStr });
+    const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(existing, null, 2))));
+    const putRes = await fetch(GH_API, {
+      method: 'PUT',
+      headers: { 'Authorization': 'token ' + GH_TOKEN, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Add comment', content: newContent, sha: meta.sha })
+    });
+    if (!putRes.ok) throw new Error('put failed');
+    document.getElementById('fbMsg').value = '';
+    document.getElementById('fbName').value = '';
+    notice.textContent = 'Comment posted!';
+    notice.style.color = '#00845a';
+    renderComments(existing);
+  } catch(err) {
+    notice.textContent = 'Something went wrong. Please try again.';
+    notice.style.color = '#c53030';
+  }
+  btn.disabled = false; btn.textContent = 'Post Comment';
+  setTimeout(() => { if (notice) notice.textContent = ''; }, 4000);
+});
+
+// Load comments when Feedback tab is opened (lazy)
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  if (btn.dataset.tab === 'fb') btn.addEventListener('click', loadComments, { once: true });
+});
 
 // Boot
 prData.forEach(loc => grid.appendChild(renderCard(loc)));
