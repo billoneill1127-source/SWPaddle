@@ -115,6 +115,22 @@ header h1 span { color: var(--accent); }
 /* Stat label tooltips */
 .sw-stat-lbl[title] { cursor: help; border-bottom: 1px dotted var(--text-muted); }
 
+/* Release Notes & Feedback panes */
+.static-pane { max-width: 680px; margin: 40px auto; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); padding: 36px 40px; }
+.static-pane h2 { font-size: 1.15rem; font-weight: 700; color: var(--primary); margin-bottom: 20px; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+.static-pane p { font-size: .88rem; color: var(--text); line-height: 1.7; margin-bottom: 14px; }
+.static-pane .version { font-size: .75rem; color: var(--text-muted); margin-bottom: 18px; }
+.fb-label { font-size: .88rem; color: var(--text); line-height: 1.7; margin-bottom: 20px; font-style: italic; }
+.fb-form { display: flex; flex-direction: column; gap: 14px; }
+.fb-form label { font-size: .78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px; display: block; }
+.fb-form input, .fb-form textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: .88rem; font-family: inherit; color: var(--text); background: var(--surface); outline: none; transition: border-color .15s; }
+.fb-form input:focus, .fb-form textarea:focus { border-color: var(--accent); }
+.fb-form textarea { min-height: 120px; resize: vertical; }
+.fb-submit { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 10px 28px; font-size: .88rem; font-weight: 600; cursor: pointer; align-self: flex-start; transition: background .15s; }
+.fb-submit:hover { background: #243d6a; }
+.fb-success { display: none; padding: 14px 16px; background: rgba(0,201,125,.1); border: 1px solid rgba(0,201,125,.3); border-radius: 8px; color: #00845a; font-size: .88rem; font-weight: 600; }
+.fb-error { display: none; padding: 14px 16px; background: rgba(229,62,62,.08); border: 1px solid rgba(229,62,62,.25); border-radius: 8px; color: #c53030; font-size: .88rem; }
+
 .no-data { padding: 16px 18px; color: var(--text-muted); font-size: .82rem; font-style: italic; }
 
 /* ── PLAYER RATINGS (Tab 2) ── */
@@ -193,6 +209,8 @@ header h1 span { color: var(--accent); }
   <nav class="tabs">
     <button class="tab-btn active" data-tab="sw">SW Series Stats</button>
     <button class="tab-btn" data-tab="pr">Player Ratings</button>
+    <button class="tab-btn" data-tab="rn">Release Notes</button>
+    <button class="tab-btn" data-tab="fb">Feedback</button>
   </nav>
 </header>
 
@@ -200,6 +218,8 @@ header h1 span { color: var(--accent); }
 <div id="prPane" class="tab-pane">
   <div id="clubGrid"></div>
 </div>
+<div id="rnPane" class="tab-pane"></div>
+<div id="fbPane" class="tab-pane"></div>
 
 <div id="modal" role="dialog" aria-modal="true">
   <div class="modal-panel">
@@ -270,7 +290,7 @@ function wlHtml(w, l) {
 
 // ── Tab switching ─────────────────────────────────────────────
 const topTabs = document.querySelectorAll('.tab-btn');
-const panes = { sw: document.getElementById('swPane'), pr: document.getElementById('prPane') };
+const panes = { sw: document.getElementById('swPane'), pr: document.getElementById('prPane'), rn: document.getElementById('rnPane'), fb: document.getElementById('fbPane') };
 const searchWrap = document.getElementById('searchWrap');
 const headerInfo = document.getElementById('headerInfo');
 
@@ -287,13 +307,15 @@ topTabs.forEach(btn => btn.addEventListener('click', () => {
 function updateHeaderInfo(tab) {
   if (tab === 'sw') {
     const teams = SW_DATA.reduce((s,d) => s + d.teams.length, 0);
-    const players = SW_DATA.reduce((s,d) => s + d.teams.reduce((t,tm) => t + tm.players.length, 0), 0);
+    const players = SW_DATA.reduce((s,d) => s + d.teams.reduce((t,tm) => t + (Array.isArray(tm.players) ? tm.players.length : 0), 0), 0);
     const matchStr = MATCH_DATA.length > 0
       ? ' &nbsp;|&nbsp; Matches: <span>' + MATCH_DATA.length + '</span>' : '';
     headerInfo.innerHTML = 'SW divisions: <span>' + SW_DATA.length + '</span> &nbsp;|&nbsp; SW teams: <span>' + teams + '</span> &nbsp;|&nbsp; Players: <span>' + players.toLocaleString() + '</span>' + matchStr;
-  } else {
+  } else if (tab === 'pr') {
     const total = PLAYER_DATA.reduce((s,l) => s+l.players.length, 0);
     headerInfo.innerHTML = 'Locations: <span>' + PLAYER_DATA.length + '</span> &nbsp;|&nbsp; Active players: <span>' + total.toLocaleString() + '</span>';
+  } else {
+    headerInfo.innerHTML = '';
   }
 }
 
@@ -672,6 +694,51 @@ document.getElementById('searchInput').addEventListener('input', e => {
   document.querySelectorAll('.club-card').forEach(c => {
     c.dataset.hidden = (q && !c.dataset.name.includes(q)) ? 'true' : 'false';
   });
+});
+
+// ── RELEASE NOTES ─────────────────────────────────────────────
+document.getElementById('rnPane').innerHTML =
+  '<div class="static-pane">' +
+  '<h2>Release Notes</h2>' +
+  '<p class="version">Version 1.3</p>' +
+  '<p>Created by Bill O\'Neill using Claude as an AI development learning tool.</p>' +
+  '<p>All data sourced from APTA Chicago. Calculations performed by application are untested.</p>' +
+  '</div>';
+
+// ── FEEDBACK ──────────────────────────────────────────────────
+document.getElementById('fbPane').innerHTML =
+  '<div class="static-pane">' +
+  '<h2>Feedback</h2>' +
+  '<p class="fb-label">I am interested in what you think and what else you might find helpful on this site. Please give your feedback here. I make no promises to read or react to it. Thank you!</p>' +
+  '<form class="fb-form" id="fbForm">' +
+  '<div><label for="fbName">Your Name (optional)</label><input type="text" id="fbName" name="name" placeholder="e.g. John Smith" autocomplete="off"></div>' +
+  '<div><label for="fbMsg">Feedback</label><textarea id="fbMsg" name="message" placeholder="What do you think? What would be helpful?" required></textarea></div>' +
+  '<button type="submit" class="fb-submit">Send Feedback</button>' +
+  '</form>' +
+  '<div class="fb-success" id="fbSuccess">Thank you — your feedback has been sent!</div>' +
+  '<div class="fb-error" id="fbError">Something went wrong. Please try again.</div>' +
+  '</div>';
+
+document.getElementById('fbForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = this.querySelector('.fb-submit');
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    const res = await fetch('https://formspree.io/oneillwm@yahoo.com', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: document.getElementById('fbName').value, message: document.getElementById('fbMsg').value })
+    });
+    if (res.ok) {
+      this.style.display = 'none';
+      document.getElementById('fbSuccess').style.display = 'block';
+    } else {
+      throw new Error('non-ok');
+    }
+  } catch(err) {
+    document.getElementById('fbError').style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Send Feedback';
+  }
 });
 
 // Boot
