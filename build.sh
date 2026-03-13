@@ -19,6 +19,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 
 /* Header */
 header { background: var(--primary); color: #fff; padding: 20px 32px 0; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(0,0,0,.25); }
+.header-img { position: absolute; right: 16px; bottom: 0; height: 80px; width: auto; object-fit: contain; border-radius: 6px; opacity: .92; }
 .header-row { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-bottom: 12px; }
 header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -.5px; }
 header h1 span { color: var(--accent); }
@@ -215,8 +216,8 @@ header h1 span { color: var(--accent); }
       <svg class="search-icon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input id="searchInput" type="text" placeholder="Search locations..." autocomplete="off">
     </div>
-    <img src="paddlegangster.png" alt="" style="height:96px;width:auto;object-fit:contain;margin-left:auto;margin-right:16px;border-radius:6px;opacity:.92;">
   </div>
+  <img class="header-img" src="paddlegangster.png" alt="">
   <div class="header-info" id="headerInfo"></div>
   <nav class="tabs">
     <button class="tab-btn active" data-tab="sw">SW Series Stats</button>
