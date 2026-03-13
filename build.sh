@@ -748,9 +748,11 @@ document.getElementById('searchInput').addEventListener('input', e => {
 document.getElementById('rnPane').innerHTML =
   '<div class="static-pane">' +
   '<h2>Release Notes</h2>' +
-  '<p class="version">Version 1.3</p>' +
+  '<p class="version">Version 1.4</p>' +
   '<p>Created by Bill O\'Neill using Claude as an AI development learning tool.</p>' +
   '<p>All data sourced from APTA Chicago. Calculations performed by application are untested.</p>' +
+  '<p><strong>1.4</strong> &mdash; Added Top Series Stats page.</p>' +
+  '<p><strong>1.4</strong> &mdash; Added content protection on comments.</p>' +
   '</div>';
 
 // ── FEEDBACK / COMMENTS ───────────────────────────────────────
