@@ -714,6 +714,12 @@ document.getElementById('rnPane').innerHTML =
 
 // ── FEEDBACK / COMMENTS ───────────────────────────────────────
 const GH_TOKEN  = 'github_pat_11B722JGY0ZElnrJxs0kCZ_' + 'IxdW4OoPEShVzKGObx10prthw1EYR4Ukqfvle2C1H1eEHTW3ZTY77wWj4OW';
+
+const BAD_WORDS = ['ass','asshole','bastard','bitch','bollocks','bullshit','cock','crap','cunt','damn','dick','dildo','douche','dumbass','faggot','fag','fuck','fucker','fucking','goddamn','hell','jackass','jerk','motherfucker','nigger','nigga','piss','prick','pussy','retard','shit','slut','twat','wanker','whore'];
+function containsProfanity(text) {
+  const normalized = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+  return BAD_WORDS.some(w => new RegExp('\\b' + w + '\\b').test(normalized));
+}
 const GH_API    = 'https://api.github.com/repos/billoneill1127-source/SWPaddle/contents/comments.json';
 const GH_RAW    = 'https://raw.githubusercontent.com/billoneill1127-source/SWPaddle/main/comments.json';
 
@@ -756,8 +762,14 @@ document.getElementById('fbForm').addEventListener('submit', async function(e) {
   const name = document.getElementById('fbName').value.trim();
   const text = document.getElementById('fbMsg').value.trim();
   if (!text) return;
-  const btn = document.getElementById('fbSubmit');
   const notice = document.getElementById('fbNotice');
+  if (containsProfanity(text) || containsProfanity(name)) {
+    notice.textContent = 'Please keep comments respectful — inappropriate language is not allowed.';
+    notice.style.color = '#c53030';
+    setTimeout(() => { notice.textContent = ''; }, 5000);
+    return;
+  }
+  const btn = document.getElementById('fbSubmit');
   btn.disabled = true; btn.textContent = 'Posting...';
   try {
     // Get current file SHA + contents
