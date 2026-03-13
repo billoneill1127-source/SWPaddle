@@ -174,8 +174,12 @@ header h1 span { color: var(--accent); }
 .modal-close:hover { background: rgba(255,255,255,.22); }
 .modal-body { overflow-y: auto; flex: 1; }
 .modal-table { width: 100%; border-collapse: collapse; font-size: .83rem; }
-.modal-table thead th { position: sticky; top: 0; background: var(--surface); color: var(--text-muted); font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; padding: 9px 14px; text-align: left; border-bottom: 2px solid var(--border); }
+.modal-table thead th { position: sticky; top: 0; background: var(--surface); color: var(--text-muted); font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; padding: 9px 14px; text-align: left; border-bottom: 2px solid var(--border); white-space: nowrap; }
 .modal-table thead th:first-child { text-align: center; }
+.modal-table thead th.sortable { cursor: pointer; }
+.modal-table thead th.sortable:hover { color: var(--primary); }
+.modal-table thead th.sort-asc::after { content: ' ▲'; font-size: .6rem; }
+.modal-table thead th.sort-desc::after { content: ' ▼'; font-size: .6rem; }
 .modal-table tbody tr:hover { background: #f8fafc; }
 .modal-table td { padding: 8px 14px; border-bottom: 1px solid var(--border); }
 .modal-table td:first-child { text-align: center; font-size: .75rem; font-weight: 700; color: var(--text-muted); width: 36px; }
@@ -713,21 +717,64 @@ function renderCard(loc) {
 }
 
 function openModal(loc) {
-  const sorted = [...loc.players].sort((a,b) => a.currentRating - b.currentRating);
+  const players = loc.players;
+  const bestRating = Math.min(...players.map(p => p.currentRating));
+  let sortCol = 7, sortDir = 1; // default: current rating ascending
+
+  const COLS = [
+    { label: '#',        key: null },
+    { label: 'First',    key: p => (p.firstName||'').toLowerCase() },
+    { label: 'Last',     key: p => (p.lastName||'').toLowerCase() },
+    { label: 'Team',     key: p => (p.teamNames[0]||'').toLowerCase() },
+    { label: 'Division', key: p => (p.division||'').toLowerCase() },
+    { label: 'Start',    key: p => p.startRating||0 },
+    { label: 'Diff',     key: p => p.currentRating - p.startRating },
+    { label: 'Current',  key: p => p.currentRating||0 },
+  ];
+
+  function renderTable() {
+    const sorted = [...players].sort((a,b) => {
+      const fn = COLS[sortCol].key;
+      const va = fn(a), vb = fn(b);
+      return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    });
+
+    const thead = '<thead><tr>' + COLS.map((c,i) => {
+      if (i === 0) return '<th>#</th>';
+      const cls = 'sortable' + (sortCol===i ? (sortDir===1?' sort-asc':' sort-desc') : '');
+      return '<th class="' + cls + '" data-col="' + i + '">' + c.label + '</th>';
+    }).join('') + '</tr></thead>';
+
+    const tbody = '<tbody>' + (sorted.length ? sorted.map((p,i) => {
+      const d = p.currentRating - p.startRating;
+      return '<tr>' +
+        '<td>' + (i+1) + '</td>' +
+        '<td>' + esc(p.firstName) + '</td>' +
+        '<td>' + esc(p.lastName) + '</td>' +
+        '<td>' + (p.teamNames.length ? p.teamNames.map(esc).join('<br>') : '') + '</td>' +
+        '<td>' + (p.division ? '<span class="div-badge">' + esc(p.division) + '</span>' : '') + '</td>' +
+        '<td>' + fmtR(p.startRating) + '</td>' +
+        '<td class="' + diffCls(d) + '">' + fmtR(d) + '</td>' +
+        '<td><span class="rating-badge ' + (p.currentRating===bestRating?'best':'normal') + '">' + fmtR(p.currentRating) + '</span></td>' +
+        '</tr>';
+    }).join('') : '<tr><td colspan="8" style="text-align:center;padding:18px;color:var(--text-muted)">No data</td></tr>') + '</tbody>';
+
+    document.getElementById('modalBody').innerHTML = '<table class="modal-table">' + thead + tbody + '</table>';
+
+    document.querySelectorAll('#modalBody thead th.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = parseInt(th.dataset.col);
+        sortDir = (sortCol === col) ? -sortDir : 1;
+        sortCol = col;
+        renderTable();
+      });
+    });
+  }
+
   document.getElementById('modalTitle').textContent = loc.name;
   document.getElementById('modalFooter').textContent =
-    sorted.length + ' player' + (sorted.length!==1?'s':'') + ' sorted by current rating (lowest = best)';
-  document.getElementById('modalBody').innerHTML =
-    '<table class="modal-table"><thead><tr><th>#</th><th>First</th><th>Last</th><th>Team</th><th>Division</th><th>Start</th><th>Diff</th><th>Current</th></tr></thead><tbody>' +
-    (sorted.map((p,i) =>
-      '<tr><td>' + (i+1) + '</td><td>' + esc(p.firstName) + '</td><td>' + esc(p.lastName) + '</td>' +
-      '<td>' + (p.teamNames.length ? p.teamNames.map(esc).join('<br>') : '') + '</td>' +
-      '<td>' + (p.division ? '<span class="div-badge">' + esc(p.division) + '</span>' : '') + '</td>' +
-      '<td>' + fmtR(p.startRating) + '</td>' +
-      '<td class="' + diffCls(p.diff) + '">' + fmtR(p.diff) + '</td>' +
-      '<td><span class="rating-badge ' + (i===0?'best':'normal') + '">' + fmtR(p.currentRating) + '</span></td></tr>'
-    ).join('') || '<tr><td colspan="8" style="text-align:center;padding:18px;color:var(--text-muted)">No data</td></tr>') +
-    '</tbody></table>';
+    players.length + ' player' + (players.length!==1?'s':'') + ' — click any column header to sort';
+  renderTable();
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -748,11 +795,12 @@ document.getElementById('searchInput').addEventListener('input', e => {
 document.getElementById('rnPane').innerHTML =
   '<div class="static-pane">' +
   '<h2>Release Notes</h2>' +
-  '<p class="version">Version 1.4</p>' +
+  '<p class="version">Version 1.5</p>' +
   '<p>Created by Bill O\'Neill using Claude as an AI development learning tool.</p>' +
   '<p>All data sourced from APTA Chicago. Calculations performed by application are untested.</p>' +
   '<p><strong>1.4</strong> &mdash; Added Top Series Stats page.</p>' +
   '<p><strong>1.4</strong> &mdash; Added content protection on comments.</p>' +
+  '<p><strong>1.5</strong> &mdash; Corrected DIFF field on ratings page and added sorting.</p>' +
   '</div>';
 
 // ── FEEDBACK / COMMENTS ───────────────────────────────────────
