@@ -120,16 +120,6 @@ header h1 span { color: var(--accent); }
 .static-pane h2 { font-size: 1.15rem; font-weight: 700; color: var(--primary); margin-bottom: 20px; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
 .static-pane p { font-size: .88rem; color: var(--text); line-height: 1.7; margin-bottom: 14px; }
 .static-pane .version { font-size: .75rem; color: var(--text-muted); margin-bottom: 18px; }
-.fb-label { font-size: .88rem; color: var(--text); line-height: 1.7; margin-bottom: 20px; font-style: italic; }
-.fb-form { display: flex; flex-direction: column; gap: 14px; }
-.fb-form label { font-size: .78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px; display: block; }
-.fb-form input, .fb-form textarea { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: .88rem; font-family: inherit; color: var(--text); background: var(--surface); outline: none; transition: border-color .15s; }
-.fb-form input:focus, .fb-form textarea:focus { border-color: var(--accent); }
-.fb-form textarea { min-height: 120px; resize: vertical; }
-.fb-submit { background: var(--primary); color: #fff; border: none; border-radius: 8px; padding: 10px 28px; font-size: .88rem; font-weight: 600; cursor: pointer; align-self: flex-start; transition: background .15s; }
-.fb-submit:hover { background: #243d6a; }
-.fb-success { display: none; padding: 14px 16px; background: rgba(0,201,125,.1); border: 1px solid rgba(0,201,125,.3); border-radius: 8px; color: #00845a; font-size: .88rem; font-weight: 600; }
-.fb-error { display: none; padding: 14px 16px; background: rgba(229,62,62,.08); border: 1px solid rgba(229,62,62,.25); border-radius: 8px; color: #c53030; font-size: .88rem; }
 
 .no-data { padding: 16px 18px; color: var(--text-muted); font-size: .82rem; font-style: italic; }
 
@@ -210,7 +200,6 @@ header h1 span { color: var(--accent); }
     <button class="tab-btn active" data-tab="sw">SW Series Stats</button>
     <button class="tab-btn" data-tab="pr">Player Ratings</button>
     <button class="tab-btn" data-tab="rn">Release Notes</button>
-    <button class="tab-btn" data-tab="fb">Feedback</button>
   </nav>
 </header>
 
@@ -219,7 +208,6 @@ header h1 span { color: var(--accent); }
   <div id="clubGrid"></div>
 </div>
 <div id="rnPane" class="tab-pane"></div>
-<div id="fbPane" class="tab-pane"></div>
 
 <div id="modal" role="dialog" aria-modal="true">
   <div class="modal-panel">
@@ -290,7 +278,7 @@ function wlHtml(w, l) {
 
 // ── Tab switching ─────────────────────────────────────────────
 const topTabs = document.querySelectorAll('.tab-btn');
-const panes = { sw: document.getElementById('swPane'), pr: document.getElementById('prPane'), rn: document.getElementById('rnPane'), fb: document.getElementById('fbPane') };
+const panes = { sw: document.getElementById('swPane'), pr: document.getElementById('prPane'), rn: document.getElementById('rnPane') };
 const searchWrap = document.getElementById('searchWrap');
 const headerInfo = document.getElementById('headerInfo');
 
@@ -704,33 +692,6 @@ document.getElementById('rnPane').innerHTML =
   '<p>Created by Bill O\'Neill using Claude as an AI development learning tool.</p>' +
   '<p>All data sourced from APTA Chicago. Calculations performed by application are untested.</p>' +
   '</div>';
-
-// ── FEEDBACK ──────────────────────────────────────────────────
-document.getElementById('fbPane').innerHTML =
-  '<div class="static-pane">' +
-  '<h2>Feedback</h2>' +
-  '<p class="fb-label">I am interested in what you think and what else you might find helpful on this site. Please give your feedback here. I make no promises to read or react to it. Thank you!</p>' +
-  '<form class="fb-form" id="fbForm">' +
-  '<div><label for="fbName">Your Name (optional)</label><input type="text" id="fbName" name="name" placeholder="e.g. John Smith" autocomplete="off"></div>' +
-  '<div><label for="fbMsg">Feedback</label><textarea id="fbMsg" name="message" placeholder="What do you think? What would be helpful?" required></textarea></div>' +
-  '<button type="submit" class="fb-submit">Send Feedback</button>' +
-  '</form>' +
-  '<div class="fb-success" id="fbSuccess">Your email client should have opened with your feedback ready to send. Thank you!</div>' +
-  '<div class="fb-error" id="fbError">Something went wrong. Please try again.</div>' +
-  '</div>';
-
-document.getElementById('fbForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const name = document.getElementById('fbName').value.trim();
-  const msg  = document.getElementById('fbMsg').value.trim();
-  if (!msg) return;
-  const body = (name ? 'From: ' + name + '\n\n' : '') + msg;
-  window.location.href = 'mailto:oneillwm@yahoo.com'
-    + '?subject=' + encodeURIComponent('SWPaddle Feedback')
-    + '&body='    + encodeURIComponent(body);
-  this.style.display = 'none';
-  document.getElementById('fbSuccess').style.display = 'block';
-});
 
 // Boot
 prData.forEach(loc => grid.appendChild(renderCard(loc)));
