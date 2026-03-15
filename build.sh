@@ -93,7 +93,8 @@ header h1 span { color: var(--accent); }
 .pti-badge { display: inline-block; font-size: .75rem; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: var(--surface); color: var(--text-muted); }
 
 /* Analysis tables (line / partner) */
-.analysis-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.analysis-table { width: 100%; border-collapse: collapse; font-size: .82rem; table-layout: fixed; }
+.analysis-table col.col-wl { width: 110px; }
 .analysis-table th { background: #eef2f8; color: var(--text-muted); font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; padding: 7px 18px; text-align: left; border-bottom: 1px solid var(--border); }
 .analysis-table td { padding: 7px 18px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
 .analysis-table tr.drilldown-header { cursor: pointer; user-select: none; }
@@ -518,6 +519,7 @@ function renderLineAnalysis(teamName, mbt) {
   });
 
   return '<table class="analysis-table">' +
+    '<colgroup><col><col class="col-wl"></colgroup>' +
     '<thead><tr><th>Line</th><th>W / L</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table>';
 }
@@ -553,6 +555,7 @@ function renderPartnerAnalysis(teamName, mbt) {
   });
 
   return '<table class="analysis-table">' +
+    '<colgroup><col><col class="col-wl"></colgroup>' +
     '<thead><tr><th>Partners (last names)</th><th>W / L</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table>';
 }
