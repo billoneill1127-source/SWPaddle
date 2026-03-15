@@ -120,6 +120,8 @@ header h1 span { color: var(--accent); }
 .static-pane { max-width: 680px; margin: 40px auto; background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow); padding: 36px 40px; }
 .static-pane h2 { font-size: 1.15rem; font-weight: 700; color: var(--primary); margin-bottom: 20px; border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
 .static-pane p { font-size: .88rem; color: var(--text); line-height: 1.7; margin-bottom: 14px; }
+.static-pane a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.static-pane a:hover { text-decoration: underline; }
 .static-pane .version { font-size: .75rem; color: var(--text-muted); margin-bottom: 18px; }
 
 /* Feedback / comments */
@@ -223,6 +225,7 @@ header h1 span { color: var(--accent); }
     <button class="tab-btn active" data-tab="sw">SW Series Stats</button>
     <button class="tab-btn" data-tab="ts">Top Series Stats</button>
     <button class="tab-btn" data-tab="pr">Player Ratings</button>
+    <button class="tab-btn" data-tab="hl">Helpful Links</button>
     <button class="tab-btn" data-tab="rn">Release Notes</button>
     <button class="tab-btn" data-tab="fb">Feedback</button>
   </nav>
@@ -233,6 +236,7 @@ header h1 span { color: var(--accent); }
 <div id="prPane" class="tab-pane">
   <div id="clubGrid"></div>
 </div>
+<div id="hlPane" class="tab-pane"></div>
 <div id="rnPane" class="tab-pane"></div>
 <div id="fbPane" class="tab-pane"></div>
 
@@ -317,7 +321,7 @@ function wlHtml(w, l) {
 
 // ── Tab switching ─────────────────────────────────────────────
 const topTabs = document.querySelectorAll('.tab-btn');
-const panes = { sw: document.getElementById('swPane'), ts: document.getElementById('tsPane'), pr: document.getElementById('prPane'), rn: document.getElementById('rnPane'), fb: document.getElementById('fbPane') };
+const panes = { sw: document.getElementById('swPane'), ts: document.getElementById('tsPane'), pr: document.getElementById('prPane'), hl: document.getElementById('hlPane'), rn: document.getElementById('rnPane'), fb: document.getElementById('fbPane') };
 const searchWrap = document.getElementById('searchWrap');
 const headerInfo = document.getElementById('headerInfo');
 
@@ -793,16 +797,32 @@ document.getElementById('searchInput').addEventListener('input', e => {
   });
 });
 
+// ── HELPFUL LINKS ─────────────────────────────────────────────
+document.getElementById('hlPane').innerHTML =
+  '<div class="static-pane">' +
+  '<h2>Helpful Links</h2>' +
+  '<p><a href="https://www.youtube.com/@paddleevolutionbeyourownco7737" target="_blank" rel="noopener">Paddl Evolution - Learn to be your own coach!</a></p>' +
+  '<br><br>' +
+  '<p><a href="https://www.youtube.com/@mnvike1/featured" target="_blank" rel="noopener">Jerry Albrikes Tennis</a></p>' +
+  '<br><br>' +
+  '<p><a href="https://www.youtube.com/@PADDLEPRO" target="_blank" rel="noopener">Paddlepro</a></p>' +
+  '<br><br>' +
+  '<p><a href="https://www.youtube.com/@MattLemery-Paddle" target="_blank" rel="noopener">KLM\'s own Matt Lemery</a></p>' +
+  '<br><br>' +
+  '<p><a href="https://www.youtube.com/watch?v=Zxe4g75PQ30&t=1477s" target="_blank" rel="noopener">Three Mortgage Bros talk Paddle</a></p>' +
+  '</div>';
+
 // ── RELEASE NOTES ─────────────────────────────────────────────
 document.getElementById('rnPane').innerHTML =
   '<div class="static-pane">' +
   '<h2>Release Notes</h2>' +
-  '<p class="version">Version 1.5</p>' +
+  '<p class="version">Version 1.6</p>' +
   '<p>Created by Bill O\'Neill using Claude as an AI development learning tool.</p>' +
   '<p>All data sourced from APTA Chicago. Calculations performed by application are untested.</p>' +
   '<p><strong>1.4</strong> &mdash; Added Top Series Stats page.</p>' +
   '<p><strong>1.4</strong> &mdash; Added content protection on comments.</p>' +
   '<p><strong>1.5</strong> &mdash; Corrected DIFF field on ratings page and added sorting.</p>' +
+  '<p><strong>1.6</strong> &mdash; Added links tab.</p>' +
   '</div>';
 
 // ── FEEDBACK / COMMENTS ───────────────────────────────────────
