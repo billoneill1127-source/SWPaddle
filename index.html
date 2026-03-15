@@ -105,6 +105,11 @@ header h1 span { color: var(--accent); }
 .drilldown-inner td { padding: 5px 12px; border-bottom: 1px solid var(--border); color: var(--text-muted); }
 .drilldown-inner tr:last-child td { border-bottom: none; }
 .drilldown-inner tr:hover td { background: #eef2f8; }
+.analysis-table tr.drilldown-sub { display: none; }
+.analysis-table tr.drilldown-sub.open { display: table-row; }
+.analysis-table tr.drilldown-sub td { background: #f8faff; font-size: .78rem; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.analysis-table tr.drilldown-sub td:first-child { padding-left: 34px; }
+.analysis-table tr.drilldown-sub:hover td { background: #eef2f8; }
 .wl-badge { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 20px; }
 .wl-win  { background: rgba(0,201,125,.12); color: #00845a; }
 .wl-loss { background: rgba(229,62,62,.10); color: #c53030; }
@@ -450,6 +455,17 @@ function buildPartnerStats(teamName, mbt) {
 
 let _ddUid = 0;  // global counter — ensures every drilldown row has a unique DOM id
 
+function sortPairsByWL(pairs, pairsObj) {
+  return pairs.slice().sort((a, b) => {
+    const sa = pairsObj[a], sb = pairsObj[b];
+    const ta = sa.wins + sa.losses, tb = sb.wins + sb.losses;
+    if (tb !== ta) return tb - ta;
+    if (sb.wins !== sa.wins) return sb.wins - sa.wins;
+    const pctA = ta ? sa.wins / ta : 0, pctB = tb ? sb.wins / tb : 0;
+    return pctB - pctA;
+  });
+}
+
 function renderLineAnalysis(teamName, mbt) {
   const stats = buildLineStats(teamName, mbt);
   const lines = Object.keys(stats).map(Number).sort((a,b) => a-b);
@@ -458,23 +474,19 @@ function renderLineAnalysis(teamName, mbt) {
   let rows = '';
   lines.forEach(lineNum => {
     const ls = stats[lineNum];
-    const id = 'dd-' + (_ddUid++);
-    rows += '<tr class="drilldown-header" data-body="' + id + '">' +
+    const grp = 'dd-' + (_ddUid++);
+    rows += '<tr class="drilldown-header" data-grp="' + grp + '">' +
       '<td><strong>Line ' + lineNum + '</strong></td>' +
       '<td>' + wlHtml(ls.wins, ls.losses) + '</td>' +
-      '</tr>' +
-      '<tr class="drilldown-body" id="' + id + '"><td colspan="2">' +
-      '<div class="drilldown-inner"><table>';
-    const pairs = Object.keys(ls.pairs).sort((a,b) => {
-      const wa = ls.pairs[a].wins, la_ = ls.pairs[a].losses;
-      const wb = ls.pairs[b].wins, lb_ = ls.pairs[b].losses;
-      return (lb_ - wb) - (la_ - wa);
-    });
+      '</tr>';
+    const pairs = sortPairsByWL(Object.keys(ls.pairs), ls.pairs);
     pairs.forEach(pk => {
       const ps = ls.pairs[pk];
-      rows += '<tr><td>' + esc(pk) + '</td><td>' + wlHtml(ps.wins, ps.losses) + '</td></tr>';
+      rows += '<tr class="drilldown-sub ' + grp + '">' +
+        '<td>' + esc(pk) + '</td>' +
+        '<td>' + wlHtml(ps.wins, ps.losses) + '</td>' +
+        '</tr>';
     });
-    rows += '</table></div></td></tr>';
   });
 
   return '<table class="analysis-table">' +
@@ -484,11 +496,7 @@ function renderLineAnalysis(teamName, mbt) {
 
 function renderPartnerAnalysis(teamName, mbt) {
   const stats = buildPartnerStats(teamName, mbt);
-  const pairs = Object.keys(stats).sort((a,b) => {
-    const da = stats[a].wins - stats[a].losses;
-    const db = stats[b].wins - stats[b].losses;
-    return db - da;
-  });
+  const pairs = sortPairsByWL(Object.keys(stats), stats);
   if (pairs.length === 0) return '<div class="no-data">No match data available for this team.</div>';
 
   let rows = '';
@@ -525,6 +533,15 @@ function renderPartnerAnalysis(teamName, mbt) {
 document.addEventListener('click', function(e) {
   const hdr = e.target.closest('tr.drilldown-header');
   if (!hdr) return;
+  const grp = hdr.dataset.grp;
+  if (grp) {
+    hdr.classList.toggle('open');
+    const isOpen = hdr.classList.contains('open');
+    hdr.closest('tbody').querySelectorAll('tr.' + grp).forEach(function(r) {
+      r.classList.toggle('open', isOpen);
+    });
+    return;
+  }
   const bodyId = hdr.dataset.body;
   if (!bodyId) return;
   const body = document.getElementById(bodyId);
