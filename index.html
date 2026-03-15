@@ -537,8 +537,9 @@ document.addEventListener('click', function(e) {
 function renderSeriesPane(data, paneEl, mbt, ptmMap) {
   data.forEach(div => {
     const allPlayers = div.teams.filter(t => !t.name.startsWith('BYE') && Array.isArray(t.players)).flatMap(t => t.players);
-    const divAvgPTI = allPlayers.length > 0
-      ? (allPlayers.reduce((s,p) => s + p.rating, 0) / allPlayers.length).toFixed(2) : '-';
+    const divAvgPTINum = allPlayers.length > 0
+      ? allPlayers.reduce((s,p) => s + p.rating, 0) / allPlayers.length : null;
+    const divAvgPTI = divAvgPTINum !== null ? divAvgPTINum.toFixed(2) : '-';
 
     const divEl = document.createElement('div');
     divEl.className = 'sw-division';
@@ -557,6 +558,8 @@ function renderSeriesPane(data, paneEl, mbt, ptmMap) {
       .filter(t => t.name !== 'BYE' && !t.name.startsWith('BYE'))
       .forEach(team => {
         const placeClass = team.place === 1 ? 'p1' : team.place === 2 ? 'p2' : team.place === 3 ? 'p3' : '';
+        const belowAvg = (Array.isArray(team.players) && divAvgPTINum !== null)
+          ? team.players.filter(p => p.rating < divAvgPTINum).length : '-';
         const teamEl = document.createElement('div');
         teamEl.className = 'sw-team';
 
@@ -569,6 +572,7 @@ function renderSeriesPane(data, paneEl, mbt, ptmMap) {
           '<div class="sw-team-stats">' +
             '<div class="sw-stat"><span class="sw-stat-val">' + team.gamesRoster + '</span><span class="sw-stat-lbl" title="The number of series games played by rostered team members">Games/Roster</span></div>' +
             '<div class="sw-stat"><span class="sw-stat-val">' + team.avgPTI.toFixed(2) + '</span><span class="sw-stat-lbl" title="The average of final PTI of rostered team members">Avg. PTI</span></div>' +
+            '<div class="sw-stat"><span class="sw-stat-val">' + belowAvg + '</span><span class="sw-stat-lbl" title="Number of rostered players with a PTI below the division average">Players Below Avg.</span></div>' +
             '<div class="sw-stat"><span class="sw-stat-val">' + computeAdjAvgPTIPerGame(team.name, team.avgPTIPerGame, mbt).toFixed(2) + '</span><span class="sw-stat-lbl" title="The average final PTI of players competing in matches (rostered players and subs)">PTI/Game</span></div>' +
           '</div>';
         thead.addEventListener('click', () => teamEl.classList.toggle('open'));
@@ -788,13 +792,14 @@ document.getElementById('hlPane').innerHTML =
 document.getElementById('rnPane').innerHTML =
   '<div class="static-pane">' +
   '<h2>Release Notes</h2>' +
-  '<p class="version">Version 1.6</p>' +
+  '<p class="version">Version 1.7</p>' +
   '<p>Created by Bill O\'Neill using Claude as an AI development learning tool.</p>' +
   '<p>All data sourced from APTA Chicago. Calculations performed by application are untested.</p>' +
   '<p><strong>1.4</strong> &mdash; Added Top Series Stats page.</p>' +
   '<p><strong>1.4</strong> &mdash; Added content protection on comments.</p>' +
   '<p><strong>1.5</strong> &mdash; Corrected DIFF field on ratings page and added sorting.</p>' +
   '<p><strong>1.6</strong> &mdash; Added links tab.</p>' +
+  '<p><strong>1.6</strong> &mdash; Added Players Below Avg. statistic.</p>' +
   '</div>';
 
 // ── FEEDBACK / COMMENTS ───────────────────────────────────────
