@@ -431,27 +431,29 @@ TOP_MATCH_DATA.forEach(m => {
 
 // ── Analysis helpers ──────────────────────────────────────────
 
-function buildPlayerLineAvgMap(mbt) {
-  const lineNums = {}; // playerName -> [lineNumbers]
-  Object.keys(mbt).forEach(function(teamName) {
-    (mbt[teamName] || []).forEach(function(m) {
-      const isT1 = m.team1 === teamName;
-      (m.lines || []).forEach(function(ln) {
-        const ourPair = isT1 ? ln.pair1 : ln.pair2;
-        (ourPair || []).forEach(function(fullName) {
-          if (!fullName || !fullName.trim()) return;
-          if (!lineNums[fullName]) lineNums[fullName] = [];
-          lineNums[fullName].push(ln.line);
-        });
+// Returns per-player { lineNums, wins, losses, games, lineAvg } for one team's matches only
+function buildTeamPlayerStats(teamName, mbt) {
+  const stats = {};
+  (mbt[teamName] || []).forEach(function(m) {
+    const isT1 = m.team1 === teamName;
+    (m.lines || []).forEach(function(ln) {
+      const ourPair = isT1 ? ln.pair1 : ln.pair2;
+      const weWon = isT1 ? (ln.winner === 1) : (ln.winner === 2);
+      (ourPair || []).forEach(function(fullName) {
+        if (!fullName || !fullName.trim()) return;
+        if (!stats[fullName]) stats[fullName] = { lineNums: [], wins: 0, losses: 0 };
+        stats[fullName].lineNums.push(ln.line);
+        if (weWon) stats[fullName].wins++; else stats[fullName].losses++;
       });
     });
   });
-  const avg = {};
-  Object.keys(lineNums).forEach(function(name) {
-    const arr = lineNums[name];
-    avg[name] = arr.reduce(function(a, b) { return a + b; }, 0) / arr.length;
+  Object.keys(stats).forEach(function(name) {
+    const s = stats[name];
+    s.games = s.wins + s.losses;
+    const arr = s.lineNums;
+    s.lineAvg = arr.length > 0 ? arr.reduce(function(a,b){return a+b;},0) / arr.length : null;
   });
-  return avg;
+  return stats;
 }
 
 function buildLineStats(teamName, mbt) {
@@ -606,7 +608,15 @@ document.addEventListener('click', function(e) {
 
 // ── Shared series pane renderer ────────────────────────────────
 function renderSeriesPane(data, paneEl, mbt, ptmMap) {
-  const playerLineAvgMap = buildPlayerLineAvgMap(mbt);
+  // PTI lookup across all rosters in this series (used for sub players)
+  const globalPTIMap = {};
+  data.forEach(function(div) {
+    (div.teams || []).forEach(function(t) {
+      (Array.isArray(t.players) ? t.players : []).forEach(function(p) {
+        if (p.name && !(p.name in globalPTIMap)) globalPTIMap[p.name] = p.rating;
+      });
+    });
+  });
   data.forEach(div => {
     const allPlayers = div.teams.filter(t => !t.name.startsWith('BYE') && Array.isArray(t.players)).flatMap(t => t.players);
     const divAvgPTINum = allPlayers.length > 0
@@ -685,29 +695,60 @@ function renderSeriesPane(data, paneEl, mbt, ptmMap) {
         tbodyEl.appendChild(subTabBar);
 
         const sorted = Array.isArray(team.players) ? [...team.players].sort((a,b) => a.rating - b.rating) : [];
+        const teamStats = buildTeamPlayerStats(team.name, mbt);
+        const rosterSet = new Set(sorted.map(p => p.name));
+
+        // Sub players: appeared in this team's matches but not on the roster
+        const subs = Object.keys(teamStats)
+          .filter(function(name) { return !rosterSet.has(name); })
+          .sort(function(a, b) {
+            return (teamStats[b].games - teamStats[a].games) || a.localeCompare(b);
+          });
+
+        function teamBadgeHtml(tName, isCurrent) {
+          return '<span style="display:inline-block;font-size:.68rem;padding:1px 6px;border-radius:4px;margin:1px;background:' +
+            (isCurrent ? 'rgba(26,42,74,.12);color:var(--text)' : 'rgba(0,201,125,.12);color:#00a065') + '">' + esc(tName) + '</span>';
+        }
+
+        const rosterRows = sorted.map(p => {
+          const allTeams = ptmMap[p.name] || [team.name];
+          const teamsHtml = allTeams.map(t => teamBadgeHtml(t, t === team.name)).join('');
+          const ts = teamStats[p.name];
+          const la = ts ? ts.lineAvg : null;
+          const laHtml = la != null ? la.toFixed(1) : '-';
+          return '<tr><td>' + esc(p.name) + '</td>' +
+            '<td>' + teamsHtml + '</td>' +
+            '<td>' + p.games + ' <small style="color:var(--text-muted)">(' + p.wins + 'W&nbsp;/&nbsp;' + p.losses + 'L)</small></td>' +
+            '<td style="text-align:right">' + laHtml + '</td>' +
+            '<td style="text-align:right"><span class="pti-badge">' + p.rating.toFixed(1) + '</span></td></tr>';
+        }).join('');
+
+        const subRows = subs.length === 0 ? '' :
+          '<tr><td colspan="5" style="font-size:.7rem;text-align:center;color:var(--text-muted);padding:4px 18px;background:#f0f4f8;border-bottom:1px solid var(--border)">— match participants not on roster —</td></tr>' +
+          subs.map(function(name) {
+            const s = teamStats[name];
+            const la = s.lineAvg != null ? s.lineAvg.toFixed(1) : '-';
+            const hometeams = ptmMap[name];
+            const teamBadge = hometeams
+              ? hometeams.map(function(t) { return teamBadgeHtml(t, false); }).join('')
+              : '';
+            const pti = globalPTIMap[name] != null ? globalPTIMap[name] : null;
+            return '<tr style="opacity:.88"><td>' + esc(name) +
+              (teamBadge ? '<br><small>' + teamBadge + '</small>' : '') + '</td>' +
+              '<td></td>' +
+              '<td>' + s.games + ' <small style="color:var(--text-muted)">(' + s.wins + 'W&nbsp;/&nbsp;' + s.losses + 'L)</small></td>' +
+              '<td style="text-align:right">' + la + '</td>' +
+              '<td style="text-align:right">' + (pti != null ? '<span class="pti-badge">' + pti.toFixed(1) + '</span>' : '-') + '</td></tr>';
+          }).join('');
+
         const playersPane = document.createElement('div');
         playersPane.className = 'team-subpane active';
         playersPane.dataset.pane = 'players';
         playersPane.dataset.loaded = 'true';
         playersPane.innerHTML =
           '<table class="sw-players-table">' +
-          '<thead><tr><th>Player</th><th>Team(s)</th><th>Games</th><th style="text-align:right">Line Avg.</th><th>PTI</th></tr></thead><tbody>' +
-          sorted.map(p => {
-            const allTeams = ptmMap[p.name] || [team.name];
-            const teamsHtml = allTeams.map(t => {
-              const isCurrent = t === team.name;
-              return '<span style="display:inline-block;font-size:.68rem;padding:1px 6px;border-radius:4px;margin:1px;background:' +
-                (isCurrent ? 'rgba(26,42,74,.12);color:var(--text)' : 'rgba(0,201,125,.12);color:#00a065') + '">' + esc(t) + '</span>';
-            }).join('');
-            const la = playerLineAvgMap[p.name];
-            const laHtml = la != null ? la.toFixed(1) : '-';
-            return '<tr><td>' + esc(p.name) + '</td>' +
-              '<td>' + teamsHtml + '</td>' +
-              '<td>' + p.games + ' <small style="color:var(--text-muted)">(' + p.wins + 'W&nbsp;/&nbsp;' + p.losses + 'L)</small></td>' +
-              '<td style="text-align:right">' + laHtml + '</td>' +
-              '<td style="text-align:right"><span class="pti-badge">' + p.rating.toFixed(1) + '</span></td></tr>';
-          }).join('') +
-          '</tbody></table>';
+          '<thead><tr><th>Player</th><th>Team(s)</th><th>Games</th><th style="text-align:right">Line Avg.</th><th>PTI</th></tr></thead>' +
+          '<tbody>' + rosterRows + subRows + '</tbody></table>';
         tbodyEl.appendChild(playersPane);
 
         const linesPane = document.createElement('div');
