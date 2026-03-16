@@ -724,7 +724,6 @@ function renderSeriesPane(data, paneEl, mbt, ptmMap) {
         }).join('');
 
         const subRows = subs.length === 0 ? '' :
-          '<tr><td colspan="5" style="font-size:.7rem;text-align:center;color:var(--text-muted);padding:4px 18px;background:#f0f4f8;border-bottom:1px solid var(--border)">— match participants not on roster —</td></tr>' +
           subs.map(function(name) {
             const s = teamStats[name];
             const la = s.lineAvg != null ? s.lineAvg.toFixed(1) : '-';
