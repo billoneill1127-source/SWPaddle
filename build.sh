@@ -438,12 +438,25 @@ function buildTeamPlayerStats(teamName, mbt) {
     const isT1 = m.team1 === teamName;
     (m.lines || []).forEach(function(ln) {
       const ourPair = isT1 ? ln.pair1 : ln.pair2;
+      const oppPtis = isT1 ? (ln.pti2 || []) : (ln.pti1 || []);
+      const ourScores = isT1 ? ln.scores1 : ln.scores2;
+      const numSets = Array.isArray(ourScores) ? ourScores.length : 0;
       const weWon = isT1 ? (ln.winner === 1) : (ln.winner === 2);
       (ourPair || []).forEach(function(fullName) {
         if (!fullName || !fullName.trim()) return;
-        if (!stats[fullName]) stats[fullName] = { lineNums: [], wins: 0, losses: 0 };
+        if (!stats[fullName]) stats[fullName] = { lineNums: [], wins: 0, losses: 0, twoSets: 0, twoSetsWins: 0, twoSetsLosses: 0, threeSets: 0, threeSetsWins: 0, threeSetsLosses: 0, oppPtiSum: 0, oppPtiCount: 0 };
         stats[fullName].lineNums.push(ln.line);
         if (weWon) stats[fullName].wins++; else stats[fullName].losses++;
+        if (numSets === 2) {
+          stats[fullName].twoSets++;
+          if (weWon) stats[fullName].twoSetsWins++; else stats[fullName].twoSetsLosses++;
+        } else if (numSets === 3) {
+          stats[fullName].threeSets++;
+          if (weWon) stats[fullName].threeSetsWins++; else stats[fullName].threeSetsLosses++;
+        }
+        oppPtis.forEach(function(pti) {
+          if (pti != null && pti !== 0) { stats[fullName].oppPtiSum += pti; stats[fullName].oppPtiCount++; }
+        });
       });
     });
   });
@@ -452,6 +465,7 @@ function buildTeamPlayerStats(teamName, mbt) {
     s.games = s.wins + s.losses;
     const arr = s.lineNums;
     s.lineAvg = arr.length > 0 ? arr.reduce(function(a,b){return a+b;},0) / arr.length : null;
+    s.oppPtiAvg = s.oppPtiCount > 0 ? s.oppPtiSum / s.oppPtiCount : null;
   });
   return stats;
 }
@@ -716,11 +730,21 @@ function renderSeriesPane(data, paneEl, mbt, ptmMap) {
           const ts = teamStats[p.name];
           const la = ts ? ts.lineAvg : null;
           const laHtml = la != null ? la.toFixed(1) : '-';
+          const twoS = ts ? ts.twoSets : 0;
+          const twoSW = ts ? ts.twoSetsWins : 0;
+          const twoSL = ts ? ts.twoSetsLosses : 0;
+          const threeS = ts ? ts.threeSets : 0;
+          const threeSW = ts ? ts.threeSetsWins : 0;
+          const threeSL = ts ? ts.threeSetsLosses : 0;
+          const oppPtiHtml = ts && ts.oppPtiAvg != null ? ts.oppPtiAvg.toFixed(1) : '-';
           return '<tr><td>' + esc(p.name) + '</td>' +
             '<td>' + teamsHtml + '</td>' +
             '<td>' + p.games + ' <small style="color:var(--text-muted)">(' + p.wins + 'W&nbsp;/&nbsp;' + p.losses + 'L)</small></td>' +
+            '<td>' + twoS + ' <small style="color:var(--text-muted)">(' + twoSW + 'W&nbsp;/&nbsp;' + twoSL + 'L)</small></td>' +
+            '<td>' + threeS + ' <small style="color:var(--text-muted)">(' + threeSW + 'W&nbsp;/&nbsp;' + threeSL + 'L)</small></td>' +
             '<td style="text-align:right">' + laHtml + '</td>' +
-            '<td style="text-align:right"><span class="pti-badge">' + p.rating.toFixed(1) + '</span></td></tr>';
+            '<td style="text-align:right"><span class="pti-badge">' + p.rating.toFixed(1) + '</span></td>' +
+            '<td style="text-align:right">' + (oppPtiHtml !== '-' ? '<span class="pti-badge">' + oppPtiHtml + '</span>' : '-') + '</td></tr>';
         }).join('');
 
         const subRows = subs.length === 0 ? '' :
@@ -732,12 +756,16 @@ function renderSeriesPane(data, paneEl, mbt, ptmMap) {
               ? hometeams.map(function(t) { return teamBadgeHtml(t, false); }).join('')
               : '';
             const pti = globalPTIMap[name] != null ? globalPTIMap[name] : null;
+            const oppPtiHtml = s.oppPtiAvg != null ? s.oppPtiAvg.toFixed(1) : '-';
             return '<tr style="opacity:.88"><td>' + esc(name) +
               (teamBadge ? '<br><small>' + teamBadge + '</small>' : '') + '</td>' +
               '<td></td>' +
               '<td>' + s.games + ' <small style="color:var(--text-muted)">(' + s.wins + 'W&nbsp;/&nbsp;' + s.losses + 'L)</small></td>' +
+              '<td>' + s.twoSets + ' <small style="color:var(--text-muted)">(' + s.twoSetsWins + 'W&nbsp;/&nbsp;' + s.twoSetsLosses + 'L)</small></td>' +
+              '<td>' + s.threeSets + ' <small style="color:var(--text-muted)">(' + s.threeSetsWins + 'W&nbsp;/&nbsp;' + s.threeSetsLosses + 'L)</small></td>' +
               '<td style="text-align:right">' + la + '</td>' +
-              '<td style="text-align:right">' + (pti != null ? '<span class="pti-badge">' + pti.toFixed(1) + '</span>' : '-') + '</td></tr>';
+              '<td style="text-align:right">' + (pti != null ? '<span class="pti-badge">' + pti.toFixed(1) + '</span>' : '-') + '</td>' +
+              '<td style="text-align:right">' + (oppPtiHtml !== '-' ? '<span class="pti-badge">' + oppPtiHtml + '</span>' : '-') + '</td></tr>';
           }).join('');
 
         const playersPane = document.createElement('div');
@@ -746,7 +774,7 @@ function renderSeriesPane(data, paneEl, mbt, ptmMap) {
         playersPane.dataset.loaded = 'true';
         playersPane.innerHTML =
           '<table class="sw-players-table">' +
-          '<thead><tr><th>Player</th><th>Team(s)</th><th>Games</th><th style="text-align:right">Line Avg.</th><th>PTI</th></tr></thead>' +
+          '<thead><tr><th>Player</th><th>Team(s)</th><th>Matches</th><th>Two Sets</th><th>Three Sets</th><th style="text-align:right">Line Avg.</th><th style="text-align:right">PTI</th><th style="text-align:right">Opp. PTI</th></tr></thead>' +
           '<tbody>' + rosterRows + subRows + '</tbody></table>';
         tbodyEl.appendChild(playersPane);
 
@@ -907,7 +935,7 @@ document.getElementById('hlPane').innerHTML =
 document.getElementById('rnPane').innerHTML =
   '<div class="static-pane">' +
   '<h2>Release Notes</h2>' +
-  '<p class="version">Version 1.8</p>' +
+  '<p class="version">Version 1.9</p>' +
   '<p>Created by Bill O\'Neill using Claude as an AI development learning tool.</p>' +
   '<p>All data sourced from APTA Chicago. Calculations performed by application are untested.</p>' +
   '<p><strong>1.4</strong> &mdash; Added Top Series Stats page.</p>' +
@@ -916,6 +944,8 @@ document.getElementById('rnPane').innerHTML =
   '<p><strong>1.6</strong> &mdash; Added links tab.</p>' +
   '<p><strong>1.6</strong> &mdash; Added Players Below Avg. statistic.</p>' +
   '<p><strong>1.8</strong> &mdash; Added Line Avg. statistic.</p>' +
+  '<p><strong>1.9</strong> &mdash; Added stats for subs on PLAYERS tab.</p>' +
+  '<p><strong>1.9</strong> &mdash; Added two set and three set records and opponent PTI.</p>' +
   '</div>';
 
 // ── FEEDBACK / COMMENTS ───────────────────────────────────────
