@@ -190,7 +190,9 @@ header h1 span { color: var(--accent); }
 .modal-table td { padding: 8px 14px; border-bottom: 1px solid var(--border); }
 .modal-table td:first-child { text-align: center; font-size: .75rem; font-weight: 700; color: var(--text-muted); width: 36px; }
 .modal-table tr:first-child td:first-child { color: var(--accent); }
-.modal-footer { padding: 10px 20px; background: var(--surface); border-radius: 0 0 12px 12px; font-size: .75rem; color: var(--text-muted); border-top: 1px solid var(--border); flex-shrink: 0; }
+.modal-footer { padding: 10px 20px; background: var(--surface); border-radius: 0 0 12px 12px; font-size: .75rem; color: var(--text-muted); border-top: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.csv-btn { background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 5px 13px; font-size: .75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; white-space: nowrap; transition: background .15s; flex-shrink: 0; }
+.csv-btn:hover { background: #243d6a; }
 .div-badge { font-size: .68rem; background: rgba(26,42,74,.08); color: var(--text-muted); padding: 1px 6px; border-radius: 4px; }
 .diff-pos { color: #e53e3e; }
 .diff-neg { color: #00a065; }
@@ -868,9 +870,40 @@ function openModal(loc) {
     });
   }
 
+  function downloadCSV() {
+    const sorted = [...players].sort((a,b) => {
+      const fn = COLS[sortCol].key;
+      const va = fn(a), vb = fn(b);
+      return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    });
+    const headers = ['First','Last','Team(s)','Division','Start PTI','Diff','Current PTI'];
+    const rows = sorted.map(p => {
+      const d = p.currentRating - p.startRating;
+      return [
+        p.firstName,
+        p.lastName,
+        (p.teamNames||[]).join('; '),
+        p.division||'',
+        p.startRating != null ? p.startRating : '',
+        d.toFixed(1),
+        p.currentRating != null ? p.currentRating : ''
+      ].map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',');
+    });
+    const csv = [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = loc.name.replace(/[^a-z0-9]/gi,'_') + '_players.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   document.getElementById('modalTitle').textContent = loc.name;
-  document.getElementById('modalFooter').textContent =
-    players.length + ' player' + (players.length!==1?'s':'') + ' — click any column header to sort';
+  document.getElementById('modalFooter').innerHTML =
+    '<span>' + players.length + ' player' + (players.length!==1?'s':'') + ' — click any column header to sort</span>' +
+    '<button class="csv-btn" id="csvDownloadBtn">&#8595; Download CSV</button>';
+  document.getElementById('csvDownloadBtn').addEventListener('click', downloadCSV);
   renderTable();
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
