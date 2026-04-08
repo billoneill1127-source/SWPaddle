@@ -207,11 +207,9 @@ $json = $output | ConvertTo-Json -Depth 7 -Compress
 [System.IO.File]::WriteAllText($outPath, $json, $enc)
 Write-Host ""
 Write-Host "Done! $($output.Count) players written to player_history.json"
-if ($output.Count -gt 0) {
-    $sample = $output | Where-Object { $_.history.Count -gt 0 } | Select-Object -First 1
-    if ($sample) {
-        Write-Host "Sample: $($sample.name) — $($sample.history.Count) matches"
-        $m = $sample.history[0]
-        Write-Host "  First: $($m.date) $($m.division) L$($m.line) $($m.result) partner=$($m.partner) score=$($m.scores)"
-    }
+$sample = $output | Where-Object { $_.history.Count -gt 0 } | Select-Object -First 1
+if ($sample) {
+    $m = $sample.history[0]
+    Write-Host "Sample: $($sample.name) ($($sample.history.Count) matches)"
+    Write-Host "  First entry: $($m.date) $($m.division) L$($m.line) $($m.result) partner=$($m.partner) score=$($m.scores)"
 }
