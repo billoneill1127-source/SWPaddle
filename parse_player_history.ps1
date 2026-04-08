@@ -10,7 +10,7 @@ $outPath  = 'C:\Users\oneil\Desktop\paddle\player_history.json'
 # ── Helper: split "First Last Rating" → {name, rating} ───────────────────────
 function Split-NameRating([string]$text) {
     $text = ([System.Net.WebUtility]::HtmlDecode($text) `
-        -replace '<[^>]+>', '' -replace '\s+', ' ').Trim()
+        -replace '<[^>]+>', '' -replace '\s+', ' ' -replace "\u00e2\u20ac\u2122", "'").Trim()
     $m = [regex]::Match($text, '^(.*?)\s+([\d.]+)\s*$')
     if ($m.Success) {
         $r = 0.0
@@ -50,8 +50,8 @@ foreach ($player in $players) {
                 '<div[^>]*class="sectioner"[^>]*>(.*?)</div>',
                 [System.Text.RegularExpressions.RegexOptions]::Singleline)
             if (-not $sectionerM.Success) { continue }
-            $division = [System.Net.WebUtility]::HtmlDecode(
-                $sectionerM.Groups[1].Value.Trim())
+            $division = ([System.Net.WebUtility]::HtmlDecode(
+                $sectionerM.Groups[1].Value.Trim())) -replace "\u00e2\u20ac\u2122", "'"
 
             # ── Split section into individual match chunks ─────────────────
             $matchParts = [regex]::Split($section, '(?=<div\s+id="match_\d+")')
@@ -73,8 +73,8 @@ foreach ($player in $players) {
                     'style="width:\s*405px[^"]*"[^>]*>.*?<a[^>]*>(.*?)</a>',
                     [System.Text.RegularExpressions.RegexOptions]::Singleline)
                 $matchName = if ($matchNameM.Success) {
-                    [System.Net.WebUtility]::HtmlDecode(
-                        $matchNameM.Groups[1].Value.Trim())
+                    ([System.Net.WebUtility]::HtmlDecode(
+                        $matchNameM.Groups[1].Value.Trim())) -replace "\u00e2\u20ac\u2122", "'"
                 } else { '' }
 
                 # Line number (20px div) ───────────────────────────────────────

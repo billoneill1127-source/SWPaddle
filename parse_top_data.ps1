@@ -71,7 +71,7 @@ foreach ($token in $topTeamOrder) {
         $players = [System.Collections.ArrayList]@()
         foreach ($pr in $playerRows) {
             $plrId    = $pr.Groups[1].Value.Trim()
-            $pName  = [System.Net.WebUtility]::HtmlDecode($pr.Groups[2].Value.Trim()) -replace '\s+', ' '
+            $pName  = [System.Net.WebUtility]::HtmlDecode($pr.Groups[2].Value.Trim()) -replace '\s+', ' ' -replace "\u00e2\u20ac\u2122", "'"
             $rating = 0.0; [double]::TryParse($pr.Groups[3].Value.Trim(),
                 [System.Globalization.NumberStyles]::Any,
                 [System.Globalization.CultureInfo]::InvariantCulture, [ref]$rating) | Out-Null
