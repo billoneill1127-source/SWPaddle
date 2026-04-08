@@ -68,7 +68,7 @@ foreach ($token in $swTeamOrder) {
 
         $players = [System.Collections.ArrayList]@()
         foreach ($pr in $playerRows) {
-            $pid    = $pr.Groups[1].Value.Trim()
+            $plrId    = $pr.Groups[1].Value.Trim()
             $pName  = [System.Net.WebUtility]::HtmlDecode($pr.Groups[2].Value.Trim()) -replace '\s+', ' '
             $rating = 0.0; [double]::TryParse($pr.Groups[3].Value.Trim(),
                 [System.Globalization.NumberStyles]::Any,
@@ -84,11 +84,11 @@ foreach ($token in $swTeamOrder) {
             }) | Out-Null
 
             # Harvest player ID for LaGrange CC rosters
-            if ($teamName -like '*LaGrange CC*' -and $pid -and -not $lagrangeIds.ContainsKey($pid)) {
-                $lagrangeIds[$pid] = [PSCustomObject]@{
+            if ($teamName -like '*LaGrange CC*' -and $plrId -and -not $lagrangeIds.ContainsKey($plrId)) {
+                $lagrangeIds[$plrId] = [PSCustomObject]@{
                     name     = $pName
                     team     = $teamName
-                    playerID = $pid
+                    playerID = $plrId
                 }
             }
         }
@@ -150,7 +150,7 @@ if (Test-Path $idFile) {
         foreach ($e in $existing) { $merged[$e.playerID] = $e }
     } catch { Write-Host "  WARN: could not read existing player_ids.json" }
 }
-foreach ($pid in $lagrangeIds.Keys) { $merged[$pid] = $lagrangeIds[$pid] }
+foreach ($plrId in $lagrangeIds.Keys) { $merged[$plrId] = $lagrangeIds[$plrId] }
 $idArr = @($merged.Values | Sort-Object name)
 [System.IO.File]::WriteAllText($idFile, ($idArr | ConvertTo-Json -Depth 3 -Compress), $enc)
 Write-Host "player_ids.json: $($lagrangeIds.Count) LaGrange CC SW players ($($merged.Count) total)"
