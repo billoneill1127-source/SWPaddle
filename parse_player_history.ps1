@@ -140,9 +140,14 @@ foreach ($player in $players) {
 
                 # Parse player row → partner name & rating ───────────────────
                 $playerText = $ra[$playerIdx].text
+                $playerRaw  = $ra[$playerIdx].raw
                 if ($playerText -notmatch '/') { continue }
                 $playerParts   = $playerText -split ' / ', 2
-                $partnerParsed = Split-NameRating $playerParts[1]
+                # The viewing player's name is bold in the raw HTML.
+                # Determine which side of '/' carries the <b> tag.
+                $rawLeft       = ($playerRaw -split '/', 2)[0]
+                $viewerIsLeft  = [bool]($rawLeft -match '<[bB]>')
+                $partnerParsed = if ($viewerIsLeft) { Split-NameRating $playerParts[1] } else { Split-NameRating $playerParts[0] }
                 $partner       = $partnerParsed.name
                 $partnerRating = $partnerParsed.rating
 
